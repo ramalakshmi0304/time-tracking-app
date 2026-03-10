@@ -1,106 +1,56 @@
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "../config/supabase";
+import { LogOut, LayoutDashboard, BarChart3, Rocket } from "lucide-react";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const location = useLocation(); // Used to highlight the active tab
+  const location = useLocation();
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error("Error logging out:", error.message);
-    } else {
-      navigate("/login");
-    }
+    if (error) console.error("Error logging out:", error.message);
+    else navigate("/login");
   };
 
-  // Helper to check if the link is active
   const isActive = (path) => location.pathname === path;
 
+  const NavLink = ({ to, children, icon: Icon }) => (
+    <Link 
+      to={to} 
+      className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 ${
+        isActive(to) 
+          ? "bg-indigo-50 text-indigo-700 shadow-sm" 
+          : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+      }`}
+    >
+      <Icon className="w-4 h-4" />
+      {children}
+    </Link>
+  );
+
   return (
-    <nav style={navStyle}>
-      <div style={logoStyle}>🚀 TrackerApp</div>
-      
-      <div style={linkContainerStyle}>
-        <Link 
-          to="/dashboard" 
-          style={isActive("/dashboard") ? activeLinkStyle : linkStyle}
-        >
-          Dashboard
-        </Link>
-        <Link 
-          to="/analytics" 
-          style={isActive("/analytics") ? activeLinkStyle : linkStyle}
-        >
-          Analytics
-        </Link>
+    <nav className="sticky top-0 z-50 px-6 h-20 flex items-center bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
+      {/* Brand */}
+      <div className="flex items-center gap-2 text-indigo-600 mr-12">
+        <Rocket className="w-6 h-6" />
+        <span className="text-xl font-bold tracking-tight text-slate-900">TrackerApp</span>
       </div>
       
+      {/* Nav Links */}
+      <div className="flex items-center gap-2">
+        <NavLink to="/dashboard" icon={LayoutDashboard}>Dashboard</NavLink>
+        <NavLink to="/analytics" icon={BarChart3}>Analytics</NavLink>
+      </div>
+      
+      {/* Logout */}
       <button 
         onClick={handleLogout}
-        style={logoutButtonStyle}
-        onMouseOver={(e) => (e.target.style.backgroundColor = "#ff7875")}
-        onMouseOut={(e) => (e.target.style.backgroundColor = "#ff4d4f")}
+        className="ml-auto flex items-center gap-2 text-slate-500 hover:text-red-600 px-4 py-2 rounded-lg font-medium text-sm transition-all hover:bg-red-50"
       >
+        <LogOut className="w-4 h-4" />
         Logout
       </button>
     </nav>
   );
 }
-
-// --- STYLES ---
-const navStyle = {
-  display: "flex",
-  alignItems: "center",
-  padding: "0 40px",
-  height: "70px",
-  backgroundColor: "rgba(255, 255, 255, 0.8)",
-  backdropFilter: "blur(10px)", // Modern "glass" effect
-  borderBottom: "1px solid #e5e7eb",
-  position: "sticky",
-  top: 0,
-  zIndex: 1000,
-};
-
-const logoStyle = {
-  fontSize: "1.25rem",
-  fontWeight: "800",
-  color: "#4f46e5",
-  marginRight: "40px",
-  letterSpacing: "-0.5px"
-};
-
-const linkContainerStyle = {
-  display: "flex",
-  gap: "30px",
-};
-
-const linkStyle = {
-  textDecoration: "none",
-  color: "#6b7280",
-  fontWeight: "500",
-  fontSize: "0.95rem",
-  transition: "color 0.2s ease",
-};
-
-const activeLinkStyle = {
-  ...linkStyle,
-  color: "#4f46e5",
-  borderBottom: "2px solid #4f46e5",
-  paddingBottom: "24px", // Aligns border with the bottom of the nav
-};
-
-const logoutButtonStyle = {
-  marginLeft: "auto",
-  backgroundColor: "#ff4d4f",
-  color: "white",
-  border: "none",
-  padding: "8px 18px",
-  borderRadius: "8px",
-  fontWeight: "600",
-  fontSize: "0.9rem",
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-  boxShadow: "0 2px 4px rgba(255, 77, 79, 0.2)"
-};

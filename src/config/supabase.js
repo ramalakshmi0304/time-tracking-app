@@ -1,14 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
-import dotenv from "dotenv";
-dotenv.config;
 
-// Use Vite's environment variable syntax
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Note: In a Vite project, 'dotenv' is handled automatically by Vite. 
+// You don't need to import or call dotenv.config() manually.
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Use the exact variable names you defined
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// ✅ Add 'export' before the function name
+// Use the variable names you just defined above
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 export const getToday = () => {
   return new Date().toISOString().split("T")[0];
 };

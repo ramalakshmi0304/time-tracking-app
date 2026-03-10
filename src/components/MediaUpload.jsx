@@ -1,126 +1,69 @@
 import React, { useState } from "react";
 import { supabase } from "../config/supabase";
+import { Upload, Loader2, CheckCircle } from "lucide-react";
 
 export default function MediaUpload({ memoryId, onUploadSuccess }) {
   const [uploading, setUploading] = useState(false);
 
-  const uploadFile = async (event) => {
+  const handleUpload = async (event) => {
     try {
       setUploading(true);
-
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error("You must select an image to upload.");
-      }
-
       const file = event.target.files[0];
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      if (!file) return;
 
-      // 1. Upload file
+      // 1. Upload file to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `public/${memoryId}/${fileName}`;
+
       const { error: uploadError } = await supabase.storage
-        .from("activity-media")
+        .from('activity memories') // Ensure this matches your bucket name
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
       // 2. Get Public URL
       const { data: { publicUrl } } = supabase.storage
-        .from("activity-media")
+        .from('activity memories')
         .getPublicUrl(filePath);
 
-      // 3. Insert record into 'media' table
+      // 3. Save URL to 'media' table
       const { error: dbError } = await supabase
-        .from("media")
-        .insert([
-          {
-            memory_id: memoryId,
-            file_url: publicUrl,
-            file_type: file.type,
-            created_at: new Date().toISOString()
-          },
-        ]);
+        .from('media')
+        .insert([{ 
+          memory_id: memoryId, 
+          file_url: publicUrl,
+          file_type: file.type 
+        }]);
 
       if (dbError) throw dbError;
 
-      if (onUploadSuccess) onUploadSuccess(publicUrl);
-
+      onUploadSuccess();
+      alert("Memory saved!");
     } catch (error) {
-      alert(error.message);
+      alert("Error uploading media: " + error.message);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div style={containerStyle}>
-      <label style={uploadButtonStyle(uploading)}>
+    <div className="flex items-center gap-2">
+      <label className="flex items-center gap-2 cursor-pointer bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50 transition-all">
         {uploading ? (
-          <span style={loadingContent}>
-            <span className="spinner-mini"></span> Uploading...
-          </span>
+          <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
         ) : (
-          <>
-            <span style={{ fontSize: '1.2rem' }}>📷</span>
-            <span>Add Memory</span>
-          </>
+          <Upload className="w-4 h-4 text-indigo-600" />
         )}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={uploadFile}
+        {uploading ? "Uploading..." : "Add Media"}
+        <input 
+          type="file" 
+          className="hidden" 
+          accept="image/*" 
+          onChange={handleUpload} 
           disabled={uploading}
-          style={hiddenInputStyle}
         />
       </label>
-      
-      {/* Visual helper text */}
-      {!uploading && <span style={hintStyle}>JPEG, PNG up to 5MB</span>}
     </div>
   );
 }
-
-// --- STYLES ---
-
-const containerStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  marginTop: '12px'
-};
-
-const uploadButtonStyle = (isUploading) => ({
-  display: 'inline-flex',
-  alignItems: 'center',
-  gap: '8px',
-  padding: '8px 16px',
-  backgroundColor: isUploading ? '#f3f4f6' : '#ffffff',
-  color: isUploading ? '#9ca3af' : '#4b5563',
-  border: '1px solid #d1d5db',
-  borderRadius: '8px',
-  cursor: isUploading ? 'not-allowed' : 'pointer',
-  fontSize: '0.875rem',
-  fontWeight: '600',
-  transition: 'all 0.2s ease',
-  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  ':hover': {
-    backgroundColor: '#f9fafb',
-    borderColor: '#9ca3af'
-  }
-});
-
-const hiddenInputStyle = {
-  display: 'none'
-};
-
-const hintStyle = {
-  fontSize: '0.75rem',
-  color: '#9ca3af',
-  fontStyle: 'italic'
-};
-
-const loadingContent = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: '8px'
-};

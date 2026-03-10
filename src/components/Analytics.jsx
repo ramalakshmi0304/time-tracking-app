@@ -30,54 +30,56 @@ export default function Analytics({ activities }) {
   const sortedActivities = [...activities].sort((a, b) => b.duration - a.duration);
 
   return (
-    <div className="analytics-container" style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <header style={{ marginBottom: "30px" }}>
-        <h2 style={{ fontSize: "1.8rem", color: "#111827", margin: 0 }}>Performance Insights</h2>
-        <p style={{ color: "#6b7280" }}>Analysis of your tracked time and productivity.</p>
+    <div className="px-5 py-5 max-w-6xl mx-auto md:px-8 lg:px-10">
+      <header className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-2 md:text-4xl">Performance Insights</h2>
+        <p className="text-gray-600 text-lg">Analysis of your tracked time and productivity.</p>
       </header>
       
       {/* Charts Section */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))", gap: "25px", marginBottom: "50px" }}>
-        <div className="chart-card" style={cardStyle}>
-          <h3 style={chartTitleStyle}>Time Distribution</h3>
-          <div style={{ height: "300px" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-fit">
+          <h3 className="text-xl font-semibold text-gray-800 mb-5 text-center">Time Distribution</h3>
+          <div className="h-80">
             <Pie data={chartData} options={chartOptions} />
           </div>
         </div>
         
-        <div className="chart-card" style={cardStyle}>
-          <h3 style={chartTitleStyle}>Activity Comparison (Mins)</h3>
-          <div style={{ height: "300px" }}>
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-100 h-fit">
+          <h3 className="text-xl font-semibold text-gray-800 mb-5 text-center">Activity Comparison (Mins)</h3>
+          <div className="h-80">
             <Bar data={chartData} options={chartOptions} />
           </div>
         </div>
       </div>
 
-      <hr style={{ border: "0", borderTop: "1px solid #e5e7eb", marginBottom: "40px" }} />
+      <hr className="border-0 border-t border-gray-200 mb-10" />
 
       {/* Media & Activity Grid */}
-      <h3 style={{ fontSize: "1.4rem", marginBottom: "20px" }}>Top Activities & Memories</h3>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "20px" }}>
+      <h3 className="text-2xl font-bold text-gray-900 mb-6">Top Activities & Memories</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
         {sortedActivities.map((a) => (
-          <div key={a.id} style={activityCardStyle}>
+          <div key={a.id} className="bg-white rounded-xl overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-200 hover:-translate-y-1">
             {/* Image Section */}
-            <div style={{ position: "relative" }}>
+            <div className="relative">
               {a.media && a.media.length > 0 ? (
                 <img 
                   src={a.media[0].file_url} 
                   alt={a.name} 
-                  style={imageStyle} 
+                  className="w-full h-40 object-cover"
                 />
               ) : (
-                <div style={placeholderStyle}>No image</div>
+                <div className="h-40 bg-gray-50 flex items-center justify-center text-gray-400 text-sm">No image</div>
               )}
-              <div style={durationBadge}>{a.duration}m</div>
+              <div className="absolute top-3 right-3 bg-white/90 px-2 py-1 rounded-lg text-xs font-bold text-indigo-600 shadow-md backdrop-blur-sm">
+                {a.duration}m
+              </div>
             </div>
 
             {/* Content Section */}
-            <div style={{ padding: "15px" }}>
-              <h4 style={{ margin: "0 0 5px 0", fontSize: "1.1rem", textTransform: "capitalize" }}>{a.name}</h4>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "#6b7280" }}>
+            <div className="p-4">
+              <h4 className="font-semibold text-gray-900 mb-1 capitalize text-base leading-tight">{a.name}</h4>
+              <p className="text-xs text-gray-500 mb-0">
                 {new Date(a.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -87,59 +89,3 @@ export default function Analytics({ activities }) {
     </div>
   );
 }
-
-// Styles Objects
-const cardStyle = {
-  background: "#fff",
-  padding: "24px",
-  borderRadius: "16px",
-  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-  border: "1px solid #f3f4f6"
-};
-
-const chartTitleStyle = {
-  fontSize: "1rem",
-  fontWeight: "600",
-  color: "#374151",
-  marginBottom: "20px",
-  textAlign: "center"
-};
-
-const activityCardStyle = {
-  background: "#fff",
-  borderRadius: "12px",
-  overflow: "hidden",
-  border: "1px solid #e5e7eb",
-  transition: "transform 0.2s",
-  cursor: "default"
-};
-
-const imageStyle = {
-  width: "100%",
-  height: "160px",
-  objectFit: "cover",
-  display: "block"
-};
-
-const placeholderStyle = {
-  height: "160px",
-  background: "#f9fafb",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  color: "#9ca3af",
-  fontSize: "0.9rem"
-};
-
-const durationBadge = {
-  position: "absolute",
-  top: "10px",
-  right: "10px",
-  background: "rgba(255, 255, 255, 0.9)",
-  padding: "4px 8px",
-  borderRadius: "6px",
-  fontSize: "0.75rem",
-  fontWeight: "bold",
-  color: "#4f46e5",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
-};

@@ -5,80 +5,128 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  // 1. SIGNUP
   const handleSignup = async () => {
-  setLoading(true);
-  const { data, error } = await supabase.auth.signUp({
-    email: email,
-    password: password,
-  });
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
 
-  if (error) {
-    alert(error.message);
-  } else {
-    // Because 'Confirm Email' is OFF, data.session will exist immediately
-    alert("Account created successfully!");
-    // Your App.jsx listener will automatically redirect to /dashboard
-  }
-  setLoading(false);
-};
+    if (loading) return;
 
-  // 2. LOGIN (Email/Password)
-  const handleLogin = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) alert(error.message);
-    setLoading(false);
+    setError("");
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password: password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("✅ Account created and logged in!");
+        setEmail("");
+        setPassword("");
+      }
+    } catch (err) {
+      setError("Signup failed. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 3. MAGIC LINK (Optional but cool)
-const handleMagicLink = async () => {
-  setLoading(true);
-  const { error } = await supabase.auth.signInWithOtp({ 
-    email,
-    options: {
-      // This ensures the link in the email brings them back to your dev server
-      emailRedirectTo: 'http://localhost:5173/dashboard', 
+  const handleLogin = async () => {
+    if (loading) return;
+
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      return;
     }
-  });
-  
-  if (error) alert(error.message);
-  else alert("Check your inbox! We've sent you a login link.");
-  setLoading(false);
-};
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setMessage("✅ Logged in successfully!");
+        setEmail("");
+        setPassword("");
+      }
+    } catch (err) {
+      setError("Login failed. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "auto", textAlign: "center" }}>
-      <h2>Welcome Back</h2>
-      <input
-        type="email"
-        placeholder="Your email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}
-      />
-      <input
-        type="password"
-        placeholder="Your password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        style={{ display: "block", width: "100%", marginBottom: "10px", padding: "8px" }}
-      />
-      
-      <button onClick={handleLogin} disabled={loading} style={{ marginRight: "10px" }}>
-        {loading ? "Loading..." : "Login"}
-      </button>
-      <button onClick={handleSignup} disabled={loading}>
-        Sign Up
-      </button>
-      
-      <p style={{ marginTop: "20px", fontSize: "0.9rem" }}>
-        Forgot password? <button onClick={handleMagicLink} style={{ background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>Send Magic Link</button>
-      </p>
+    <div className="min-h-screen flex items-center justify-center py-12 px-4 bg-gradient-to-br from-indigo-50 to-purple-50">
+      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-2xl shadow-xl border border-gray-100">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900">Welcome</h2>
+          <p className="mt-2 text-sm text-gray-600">Sign in or create an account</p>
+        </div>
+
+        {error && <div className="bg-red-50 p-4 rounded-xl text-red-800 text-sm">{error}</div>}
+        {message && <div className="bg-green-50 p-4 rounded-xl text-green-800 text-sm">{message}</div>}
+
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              disabled={loading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={handleLogin}
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Login"}
+            </button>
+
+            <button
+              onClick={handleSignup}
+              disabled={loading}
+              className="w-full bg-purple-600 text-white py-3 rounded-xl font-semibold hover:bg-purple-700 disabled:opacity-50"
+            >
+              Create Account
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
-} 
+}

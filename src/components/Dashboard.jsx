@@ -1,25 +1,53 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase, getToday } from "../config/supabase";
 import MediaUpload from "./MediaUpload";
 
 export default function Dashboard({ user, activities, setActivities }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState("");
+  const [selectedDate, setSelectedDate] = useState(getToday());
+  const [view, setView] = useState('today'); // 'today', 'calendar', 'schedule'
   
   // States for editing
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editDuration, setEditDuration] = useState("");
+  
+  // Completion states
+  const [completedActivities, setCompletedActivities] = useState({});
+
+  // Filter activities by selected date
+  const todayActivities = activities.filter(a => a.date === selectedDate);
+  
+  // Calculate total time and progress
+  const totalDuration = todayActivities.reduce((sum, a) => sum + a.duration, 0);
+  const maxDayMins = 24 * 60; // 1440 minutes
+  const progressPercent = Math.min((totalDuration / maxDayMins) * 100, 100);
+
+  // Load completion status on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(`completed_${selectedDate}`);
+    if (saved) {
+      setCompletedActivities(JSON.parse(saved));
+    }
+  }, [selectedDate]);
+
+  // Save completion status
+  const toggleComplete = (id) => {
+    const newCompleted = { ...completedActivities, [id]: !completedActivities[id] };
+    setCompletedActivities(newCompleted);
+    localStorage.setItem(`completed_${selectedDate}`, JSON.stringify(newCompleted));
+  };
 
   const addActivity = async () => {
     if (!name || !duration) return alert("Please fill in all fields");
     const { data, error } = await supabase
       .from('activities')
       .insert([{
-          name,
-          duration: Number(duration),
-          user_id: user.id,
-          date: getToday()
+        name,
+        duration: Number(duration),
+        user_id: user.id,
+        date: selectedDate
       }])
       .select();
 
@@ -60,80 +88,323 @@ export default function Dashboard({ user, activities, setActivities }) {
     else setActivities(activities.filter((a) => a.id !== id));
   };
 
-  return (
-    <div style={containerStyle}>
-      <div style={cardStyle}>
-        <h3 style={headerStyle}>Track New Activity</h3>
-        <div style={inputGroupStyle}>
-          <input
-            style={inputStyle}
-            placeholder="What are you doing?"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            style={{ ...inputStyle, width: '100px' }}
-            type="number"
-            placeholder="Mins"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          />
-          <button style={buttonStyle} onClick={addActivity}>Add Activity</button>
-        </div>
-      </div>
+  // Generate calendar days
+  const generateCalendar = () => {
+    const days = [];
+    const today = new Date();
+    for (let i = -7; i <= 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0];
+      days.push({
+        date: dateStr,
+        isToday: dateStr === getToday(),
+        activitiesCount: activities.filter(a => a.date === dateStr).length
+      });
+    }
+    return days;
+  };
 
-      <div style={{ marginTop: '40px' }}>
-        <h3 style={headerStyle}>Today's Timeline</h3>
-        {activities.length === 0 ? (
-          <div style={emptyStateStyle}>No activities tracked yet.</div>
+  const calendarDays = generateCalendar();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Header with View Tabs */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-10 gap-6">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 bg-clip-text text-transparent mb-2">
+              Daily Dashboard
+            </h1>
+            <p className="text-xl text-gray-600">Track your productivity across days</p>
+          </div>
+          
+          {/* View Tabs */}
+          <div className="flex bg-white/80 backdrop-blur-xl rounded-2xl p-1 shadow-lg border border-white/50">
+            {['today', 'calendar', 'schedule'].map((tab) => (
+              <button
+                key={tab}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  view === tab
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl shadow-indigo-500/25'
+                    : 'text-gray-600 hover:text-indigo-600 hover:bg-white/50'
+                }`}
+                onClick={() => setView(tab)}
+              >
+                {tab === 'today' && '📊 Today'}
+                {tab === 'calendar' && '📅 Calendar'}
+                {tab === 'schedule' && '⏰ Schedule'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Progress Bar - Always Visible */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 mb-10 shadow-xl border border-white/50">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Daily Progress</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {totalDuration} / {maxDayMins} mins
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-500 bg-clip-text text-transparent">
+                {progressPercent.toFixed(1)}%
+              </p>
+              <p className="text-sm text-gray-500">{Math.floor(progressPercent)}% complete</p>
+            </div>
+          </div>
+          
+          <div className="w-full bg-gray-200/50 rounded-full h-4 shadow-inner">
+            <div 
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-4 rounded-full shadow-lg transition-all duration-1000 ease-out flex items-center justify-center text-xs font-bold text-white"
+              style={{ width: `${progressPercent}%` }}
+            >
+              {progressPercent === 100 && '🎉 COMPLETE!'}
+            </div>
+          </div>
+        </div>
+
+        {/* Date Selector */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl p-6 mb-10 shadow-xl border border-white/50">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <h3 className="text-xl font-bold text-gray-900">Selected Date</h3>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-6 py-3 bg-white border border-gray-200 rounded-2xl text-lg font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/20 shadow-sm w-full lg:w-64"
+            />
+          </div>
+        </div>
+
+        {/* View Content */}
+        {view === 'calendar' && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 mb-10">
+            {calendarDays.map((day) => (
+              <button
+                key={day.date}
+                onClick={() => setSelectedDate(day.date)}
+                className={`p-6 rounded-2xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:scale-105 hover:-translate-y-1 ${
+                  selectedDate === day.date
+                    ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white border-indigo-400 shadow-indigo-500/25 scale-105 border-4'
+                    : day.isToday
+                    ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white border-yellow-400 shadow-yellow-500/25'
+                    : day.activitiesCount > 0
+                    ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-white border-emerald-400 shadow-emerald-500/25'
+                    : 'bg-white/70 backdrop-blur-xl border-gray-200/50 text-gray-700 hover:border-indigo-300'
+                }`}
+              >
+                <div className="text-2xl font-bold mb-1">
+                  {new Date(day.date).getDate()}
+                </div>
+                <div className="text-xs opacity-90">
+                  {day.activitiesCount > 0 ? `${day.activitiesCount} tasks` : 'No tasks'}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {view === 'schedule' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                    {i+1}:00
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-lg text-gray-900">Hour Slot</h4>
+                    <p className="text-sm text-gray-500">Add time-based scheduling here</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-2 bg-gray-200 rounded-full">
+                    <div className="h-2 bg-emerald-500 rounded-full w-3/4 shadow-sm" />
+                  </div>
+                  <p className="text-sm text-gray-600">45/60 mins used</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add Activity Card */}
+        <div className="max-w-2xl mx-auto mb-10">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl border border-white/50 p-8 hover:shadow-2xl transition-all duration-500 hover:-translate-y-1">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg text-white font-bold text-xl">
+                ➕
+              </div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Add Activity for {new Date(selectedDate).toLocaleDateString()}
+              </h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <input
+                  className="w-full px-5 py-4 bg-white/50 border border-gray-200/50 rounded-2xl text-lg placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 hover:border-gray-300 shadow-sm"
+                  placeholder="What are you doing?"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-3">
+                <input
+                  className="flex-1 px-5 py-4 bg-white/50 border border-gray-200/50 rounded-2xl text-lg placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-300 hover:border-gray-300 shadow-sm"
+                  type="number"
+                  placeholder="Mins"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                />
+                <button 
+                  className="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-indigo-500/50 whitespace-nowrap"
+                  onClick={addActivity}
+                >
+                  Add Activity
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Activities List */}
+        {todayActivities.length === 0 ? (
+          <div className="text-center py-20 bg-white/60 backdrop-blur-xl rounded-3xl border-2 border-dashed border-gray-200 shadow-xl">
+            <div className="w-20 h-20 mx-auto mb-6 text-gray-400 text-5xl">📋</div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">No activities</h3>
+            <p className="text-gray-600 text-lg mb-8 max-w-md mx-auto">
+              Add your first activity above for {new Date(selectedDate).toLocaleDateString()}
+            </p>
+          </div>
         ) : (
-          <div style={timelineStyle}>
-            {activities.map((a) => (
-              <div key={a.id} style={activityItemStyle}>
-                <div style={activityContentStyle}>
-                  {editingId === a.id ? (
-                    /* --- EDIT MODE --- */
-                    <div style={{ display: 'flex', gap: '10px', flex: 1 }}>
-                      <input 
-                        style={{...inputStyle, padding: '5px 10px'}} 
-                        value={editName} 
-                        onChange={(e) => setEditName(e.target.value)} 
-                      />
-                      <input 
-                        type="number" 
-                        style={{...inputStyle, width: '70px', padding: '5px 10px'}} 
-                        value={editDuration} 
-                        onChange={(e) => setEditDuration(e.target.value)} 
-                      />
-                      <button style={saveButtonStyle} onClick={() => saveEdit(a.id)}>Save</button>
-                      <button style={cancelButtonStyle} onClick={() => setEditingId(null)}>Cancel</button>
+          <div className="space-y-6">
+            {todayActivities.map((activity) => (
+              <div 
+                key={activity.id} 
+                className={`group bg-white/70 backdrop-blur-xl rounded-3xl p-8 shadow-lg border border-white/50 hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 border-l-4 ${
+                  editingId === activity.id 
+                    ? 'border-emerald-500 bg-emerald-50/50' 
+                    : completedActivities[activity.id]
+                    ? 'border-green-500 bg-green-50/50 opacity-75'
+                    : 'border-indigo-500 hover:border-indigo-600'
+                }`}
+              >
+                <div className="flex items-start justify-between mb-6 gap-4">
+                  <div className="flex items-start gap-4 flex-1">
+                    <button
+                      onClick={() => toggleComplete(activity.id)}
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center mt-1 font-bold text-lg transition-all duration-200 shadow-md ${
+                        completedActivities[activity.id]
+                          ? 'bg-green-500 text-white shadow-green-500/25 rotate-12 scale-110'
+                          : 'bg-gray-200 text-gray-500 hover:bg-indigo-200 hover:text-indigo-600 hover:scale-110'
+                      }`}
+                      title={completedActivities[activity.id] ? "Mark incomplete" : "Mark complete"}
+                    >
+                      {completedActivities[activity.id] ? '✓' : '○'}
+                    </button>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-3">
+                        {editingId === activity.id ? (
+                          <input 
+                            className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-2xl text-xl font-semibold focus:outline-none focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-300"
+                            value={editName} 
+                            onChange={(e) => setEditName(e.target.value)} 
+                          />
+                        ) : (
+                          <h3 
+                            className={`text-2xl font-bold transition-all duration-300 pr-8 capitalize ${
+                              completedActivities[activity.id] 
+                                ? 'line-through decoration-2 decoration-green-500/50 text-green-700' 
+                                : 'text-gray-900 group-hover:text-indigo-900'
+                            }`}
+                          >
+                            {activity.name}
+                          </h3>
+                        )}
+                        
+                        <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-semibold shadow-sm transition-all duration-300 ${
+                          completedActivities[activity.id]
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-800'
+                        }`}>
+                          <span className="text-lg">⏱️</span>
+                          {editingId === activity.id ? (
+                            <input 
+                              type="number" 
+                              className="w-20 px-2 py-1 bg-transparent border-0 text-lg font-semibold focus:outline-none text-right"
+                              value={editDuration} 
+                              onChange={(e) => setEditDuration(e.target.value)} 
+                            />
+                          ) : (
+                            `${activity.duration} mins`
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  ) : (
-                    /* --- VIEW MODE --- */
-                    <>
-                      <div>
-                        <strong style={{ fontSize: '1.1rem', textTransform: 'capitalize' }}>{a.name}</strong>
-                        <span style={durationTagStyle}>{a.duration} mins</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: '15px' }}>
-                        <button onClick={() => startEditing(a)} style={editIconStyle}>✎</button>
-                        <button onClick={() => deleteActivity(a.id)} style={deleteButtonStyle}>✕</button>
-                      </div>
-                    </>
-                  )}
+                  </div>
+
+                  <div className={`flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 ${completedActivities[activity.id] ? 'opacity-50' : ''}`}>
+                    {editingId === activity.id ? (
+                      <>
+                        <button 
+                          onClick={() => saveEdit(activity.id)}
+                          className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <span className="font-bold text-lg">✓</span>
+                        </button>
+                        <button 
+                          onClick={() => setEditingId(null)}
+                          className="p-3 bg-gray-500 hover:bg-gray-600 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <span className="font-bold text-lg">✕</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          onClick={() => startEditing(activity)}
+                          className="p-3 bg-indigo-500 hover:bg-indigo-600 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <span className="font-bold text-lg">✏️</span>
+                        </button>
+                        <button 
+                          onClick={() => deleteActivity(activity.id)}
+                          className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-2xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
+                        >
+                          <span className="font-bold text-lg">🗑️</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
-                {/* Media Gallery */}
-                {a.media && a.media.length > 0 && (
-                  <div style={galleryStyle}>
-                    {a.media.map((img) => (
-                      <img key={img.id} src={img.file_url} alt="Activity" style={imageStyle} />
+                {/* Media Gallery - FIXED KEY PROP */}
+                {activity.media && activity.media.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 p-4 bg-gradient-to-br from-gray-50 to-indigo-50 rounded-2xl">
+                    {activity.media.map((img, index) => (
+                      <div 
+                        key={img.id || img.file_url || index}
+                        className="group/media relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                      >
+                        <img 
+                          src={img.file_url} 
+                          alt="Activity" 
+                          className="w-full h-28 md:h-32 object-cover rounded-2xl group-hover/media:scale-110 transition-transform duration-300"
+                        />
+                      </div>
                     ))}
                   </div>
                 )}
 
-                <div style={{ marginTop: '10px' }}>
-                  <MediaUpload memoryId={a.id} onUploadSuccess={() => {/* Trigger a re-fetch if needed */}} />
+                {/* Media Upload */}
+                <div className="pt-4 border-t border-gray-200/50">
+                  <MediaUpload memoryId={activity.id} onUploadSuccess={() => {}} />
                 </div>
               </div>
             ))}
@@ -143,24 +414,3 @@ export default function Dashboard({ user, activities, setActivities }) {
     </div>
   );
 }
-
-// --- NEW STYLES ---
-const editIconStyle = { background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: '1.1rem' };
-const saveButtonStyle = { backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '5px 12px', cursor: 'pointer' };
-const cancelButtonStyle = { backgroundColor: '#ef4444', color: 'white', border: 'none', borderRadius: '6px', padding: '5px 12px', cursor: 'pointer' };
-
-// --- REUSED STYLES ---
-const containerStyle = { maxWidth: '800px', margin: '0 auto', padding: '20px' };
-const cardStyle = { background: '#fff', padding: '24px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb' };
-const headerStyle = { margin: '0 0 20px 0', fontSize: '1.4rem', color: '#111827' };
-const inputGroupStyle = { display: 'flex', gap: '12px', flexWrap: 'wrap' };
-const inputStyle = { flex: 1, padding: '12px 16px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '1rem', outline: 'none' };
-const buttonStyle = { backgroundColor: '#4f46e5', color: 'white', padding: '12px 24px', borderRadius: '8px', border: 'none', fontWeight: '600', cursor: 'pointer' };
-const timelineStyle = { display: 'flex', flexDirection: 'column', gap: '16px' };
-const activityItemStyle = { background: '#fff', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #4f46e5', boxShadow: '0 2px 4px rgba(0,0,0,0.02)', borderTop: '1px solid #f3f4f6', borderRight: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6' };
-const activityContentStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' };
-const durationTagStyle = { marginLeft: '12px', backgroundColor: '#eef2ff', color: '#4338ca', padding: '4px 10px', borderRadius: '99px', fontSize: '0.85rem', fontWeight: '600' };
-const deleteButtonStyle = { background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '1.2rem' };
-const galleryStyle = { display: 'flex', gap: '10px', marginTop: '15px', flexWrap: 'wrap' };
-const imageStyle = { width: '100px', height: '100px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e5e7eb' };
-const emptyStateStyle = { textAlign: 'center', padding: '40px', color: '#6b7280', background: '#f9fafb', borderRadius: '12px', border: '2px dashed #e5e7eb' };
